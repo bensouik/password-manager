@@ -16,7 +16,7 @@ const client = <Client>{
     metadata: {
         createdDate: new Date().toISOString(),
         updatedDate: new Date().toISOString(),
-    }
+    },
 };
 
 const password1 = <Password>{
@@ -29,7 +29,7 @@ const password1 = <Password>{
     metadata: {
         createdDate: new Date().toISOString(),
         updatedDate: new Date().toISOString(),
-    }
+    },
 };
 
 const password2 = <Password>{
@@ -42,7 +42,7 @@ const password2 = <Password>{
     metadata: {
         createdDate: new Date().toISOString(),
         updatedDate: new Date().toISOString(),
-    }
+    },
 };
 
 DynamoDBClient.save('Client', client);

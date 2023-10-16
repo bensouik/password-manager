@@ -220,7 +220,7 @@ export class PasswordRepository implements IPasswordRepository {
             };
 
             // Send the UpdateCommandInput request to DynamoDB
-            const result = await this.dynamoDBClient.update(this.TABLE_NAME, entry);
+            await this.dynamoDBClient.update(this.TABLE_NAME, entry);
 
             // Log an info message stating that the password was updated successfully
             this.logger.info('Successfully updated the password', {

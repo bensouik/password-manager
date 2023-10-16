@@ -29,7 +29,7 @@ export class ClientService implements IClientService {
     public async createClient(request: CreateClientRequest): Promise<CreateClientResponse> {
         await this.clientRepository
             .getClientByLogin(request.login)
-            .then(() => 
+            .then(() =>
                 Promise.reject(
                     PasswordManagerException.badRequest()
                         .withMessage('Login is already in use')
@@ -77,14 +77,13 @@ export class ClientService implements IClientService {
         // using the ClientRepository
 
         //Verify that the client exists, if not throw a 404 Not Found exception
-        await this.clientRepository.getClientById(clientId)
-        .catch((error) => {
+        await this.clientRepository.getClientById(clientId).catch((error) => {
             if (error instanceof PasswordManagerException && error.statusCode === HttpStatus.NOT_FOUND) {
                 return Promise.reject(
                     PasswordManagerException.notFound()
                         .withMessage('Login not found')
                         .withErrorCode(PasswordManagerErrorCodeEnum.ClientNotFound),
-                )
+                );
             }
 
             // If some other error occurs, reject with it
@@ -95,7 +94,10 @@ export class ClientService implements IClientService {
         const encryptedPassword = this.crypto.encrypt(request.password);
 
         // Update the client with the constructed input above
-        const client = await this.clientRepository.updateClient(clientId, {login: request.login, password: encryptedPassword});
+        const client = await this.clientRepository.updateClient(clientId, {
+            login: request.login,
+            password: encryptedPassword,
+        });
 
         return {
             client: {

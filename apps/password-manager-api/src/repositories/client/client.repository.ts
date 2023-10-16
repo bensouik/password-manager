@@ -163,8 +163,7 @@ export class ClientRepository implements IClientRepository {
                 Key: {
                     clientId: clientId,
                 },
-                UpdateExpression:
-                    'set #login = :login, #password = :password, metadata.#updatedDate = :updatedDate',
+                UpdateExpression: 'set #login = :login, #password = :password, metadata.#updatedDate = :updatedDate',
                 ExpressionAttributeNames: {
                     '#login': 'login',
                     '#password': 'password',
@@ -179,20 +178,18 @@ export class ClientRepository implements IClientRepository {
             };
 
             // Send the UpdateCommandInput request to DynamoDB
-            const result = await this.dynamoDBClient.update(this.TABLE_NAME, entry);
+            await this.dynamoDBClient.update(this.TABLE_NAME, entry);
 
             // Log an info message stating that the password was updated successfully
             this.logger.info('Successfully updated the client', {
                 dynamoDB: {
                     table: this.TABLE_NAME,
                     clientId,
-                    result,
                 },
             });
 
             // Return the updated client record
             return this.getClientById(clientId);
-
         } catch (error) {
             // If something goes wrong, log an error message indicating that updating the password failed
             this.logger.error('Failed to update client', {
@@ -210,7 +207,6 @@ export class ClientRepository implements IClientRepository {
         }
     }
 }
-
 
 export const CLIENT_REPOSITORY: InjectionToken = 'ClientRepository';
 
