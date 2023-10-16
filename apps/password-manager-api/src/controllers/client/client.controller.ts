@@ -35,10 +35,10 @@ export class ClientController {
     @Put(':clientId')
     @HttpCode(HttpStatus.OK)
     @UseGuards(AuthGuard)
-    public async updateClient(
+    public updateClient(
         @Param('clientId') clientId: string,
         @Body() request: UpdateClientRequest,
     ): Promise<UpdateClientResponse> {
-        return Promise.reject(PasswordManagerException.notImplemented());
+        return this.clientService.updateClient(clientId, request);
     }
 }

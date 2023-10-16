@@ -13,6 +13,10 @@ const client = <Client>{
     clientId: clientId,
     login: 'local',
     password: Crypto.encrypt('P@ssword123'),
+    metadata: {
+        createdDate: new Date().toISOString(),
+        updatedDate: new Date().toISOString(),
+    }
 };
 
 const password1 = <Password>{
@@ -22,6 +26,10 @@ const password1 = <Password>{
     login: 'login',
     value: Crypto.encrypt('P@ssword123'),
     clientId: clientId,
+    metadata: {
+        createdDate: new Date().toISOString(),
+        updatedDate: new Date().toISOString(),
+    }
 };
 
 const password2 = <Password>{
@@ -31,6 +39,10 @@ const password2 = <Password>{
     login: 'login',
     value: Crypto.encrypt('P@ssword123'),
     clientId: clientId,
+    metadata: {
+        createdDate: new Date().toISOString(),
+        updatedDate: new Date().toISOString(),
+    }
 };
 
 DynamoDBClient.save('Client', client);

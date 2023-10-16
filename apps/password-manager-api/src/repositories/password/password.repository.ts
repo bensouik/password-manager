@@ -199,7 +199,7 @@ export class PasswordRepository implements IPasswordRepository {
                     passwordId: passwordId,
                 },
                 UpdateExpression:
-                    'set #name = :name, #website = :website, #login = :login, #value = :value, #clientId = :clientId, #metadata.updatedDate = :updatedDate',
+                    'set #name = :name, #website = :website, #login = :login, #value = :value, #clientId = :clientId, #metadata.#updatedDate = :updatedDate',
                 ExpressionAttributeNames: {
                     '#name': 'name',
                     '#website': 'website',
@@ -231,7 +231,7 @@ export class PasswordRepository implements IPasswordRepository {
             });
 
             // Return the updated password record
-            return result.Attributes as Password;
+            return this.getPasswordById(passwordId);
         } catch (error) {
             // If something goes wrong, log an error message indicating that updating the password failed
             this.logger.error('Failed to update password', {

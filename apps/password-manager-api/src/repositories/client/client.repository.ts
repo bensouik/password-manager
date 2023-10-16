@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { GetCommandInput, QueryCommandInput } from '@aws-sdk/lib-dynamodb';
+import { GetCommandInput, QueryCommandInput, UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
 import { ClassProvider, Inject, Injectable, InjectionToken } from '@nestjs/common';
 import { IClientRepository } from '@password-manager:api:interfaces';
 import { DYNAMODB_CLIENT, LOGGER } from '@password-manager:api:providers';
@@ -149,14 +149,68 @@ export class ClientRepository implements IClientRepository {
         return Promise.reject(PasswordManagerException.notImplemented());
     }
 
-    public updateClient(clientId: string, input: ClientInput): Promise<Client> {
+    public async updateClient(clientId: string, input: ClientInput): Promise<Client> {
         // This method is supposed to update an existing client record in DynamoDB.
         // You'll need to construct an 'UpdateCommandInput' to send to DynamoDB.
         // This can look quite complex depending how how many attributes you are updating.
         // Take a look at the 'updatePassword' method in the PasswordRepository for help.
-        return Promise.reject(PasswordManagerException.notImplemented());
+        try {
+            // Construct an UpdateCommandInput type which contains the table name,
+            // the key to query by which is the passwordId, along with the update expressions.
+            // This command will update the password record's name, website, login, value, clientId, and the updatedDate
+            const entry = <UpdateCommandInput>{
+                TableName: this.TABLE_NAME,
+                Key: {
+                    clientId: clientId,
+                },
+                UpdateExpression:
+                    'set #login = :login, #password = :password, metadata.#updatedDate = :updatedDate',
+                ExpressionAttributeNames: {
+                    '#login': 'login',
+                    '#password': 'password',
+                    '#updatedDate': 'updatedDate',
+                },
+                ExpressionAttributeValues: {
+                    ':login': input.login,
+                    ':password': input.password,
+                    ':updatedDate': new Date().toISOString(),
+                },
+                ConditionExpression: 'attribute_exists(clientId)',
+            };
+
+            // Send the UpdateCommandInput request to DynamoDB
+            const result = await this.dynamoDBClient.update(this.TABLE_NAME, entry);
+
+            // Log an info message stating that the password was updated successfully
+            this.logger.info('Successfully updated the client', {
+                dynamoDB: {
+                    table: this.TABLE_NAME,
+                    clientId,
+                    result,
+                },
+            });
+
+            // Return the updated client record
+            return this.getClientById(clientId);
+
+        } catch (error) {
+            // If something goes wrong, log an error message indicating that updating the password failed
+            this.logger.error('Failed to update client', {
+                dynamoDB: {
+                    table: this.TABLE_NAME,
+                    clientId,
+                    error,
+                },
+            });
+
+            // Reject/throw an exception that indicates that DynamoDB is down
+            return Promise.reject(
+                PasswordManagerException.serviceUnavailable().withErrorCode(PasswordManagerErrorCodeEnum.DynamoDBDown),
+            );
+        }
     }
 }
+
 
 export const CLIENT_REPOSITORY: InjectionToken = 'ClientRepository';
 

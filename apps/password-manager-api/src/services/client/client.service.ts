@@ -1,11 +1,12 @@
 // Remove below line when the service has been implemented
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import { ClassProvider, HttpStatus, Inject, InjectionToken } from '@nestjs/common';
+import { PasswordManagerResponseInterceptor } from '@password-manager:api:interceptors';
 import { IClientRepository, IClientService, IPasswordRepository } from '@password-manager:api:interfaces';
 import { CRYPTO } from '@password-manager:api:providers';
 import { CLIENT_REPOSITORY } from '@password-manager:api:repositories/client/client.repository';
 import { PASSWORD_REPOSITORY } from '@password-manager:api:repositories/password/password.repository';
-import { PasswordManagerException } from '@password-manager:api:types';
+import { ClientInput, PasswordManagerException } from '@password-manager:api:types';
 import { Crypto } from '@password-manager:crypto';
 import {
     CreateClientRequest,
@@ -28,7 +29,7 @@ export class ClientService implements IClientService {
     public async createClient(request: CreateClientRequest): Promise<CreateClientResponse> {
         await this.clientRepository
             .getClientByLogin(request.login)
-            .then(() =>
+            .then(() => 
                 Promise.reject(
                     PasswordManagerException.badRequest()
                         .withMessage('Login is already in use')
@@ -65,7 +66,7 @@ export class ClientService implements IClientService {
         await this.passwordRepository.deletePasswordsForClientId(clientId);
     }
 
-    public updateClient(clientId: string, request: UpdateClientRequest): Promise<UpdateClientResponse> {
+    public async updateClient(clientId: string, request: UpdateClientRequest): Promise<UpdateClientResponse> {
         // This method should do everything that is needed to update a client.
         // The first step should verify that the client exists. You should use the
         // ClientRepository to do so. If the client does not exist, this method should
@@ -74,7 +75,35 @@ export class ClientService implements IClientService {
         // Before updating the client, the requested password should be encrypted. Use the Crypto dependency
         // to help with that. Lastly, after encrypting the password, you can update the client by
         // using the ClientRepository
-        return Promise.reject(PasswordManagerException.notImplemented());
+
+        //Verify that the client exists, if not throw a 404 Not Found exception
+        await this.clientRepository.getClientById(clientId)
+        .catch((error) => {
+            if (error instanceof PasswordManagerException && error.statusCode === HttpStatus.NOT_FOUND) {
+                return Promise.reject(
+                    PasswordManagerException.notFound()
+                        .withMessage('Login not found')
+                        .withErrorCode(PasswordManagerErrorCodeEnum.ClientNotFound),
+                )
+            }
+
+            // If some other error occurs, reject with it
+            return Promise.reject(error);
+        });
+
+        // Encrypt the password
+        const encryptedPassword = this.crypto.encrypt(request.password);
+
+        // Update the client with the constructed input above
+        const client = await this.clientRepository.updateClient(clientId, {login: request.login, password: encryptedPassword});
+
+        return {
+            client: {
+                clientId: client.clientId,
+                login: client.login,
+                metadata: client.metadata,
+            },
+        };
     }
 }
 
