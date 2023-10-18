@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { GetCommandInput, QueryCommandInput, UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
+import { GetCommandInput, DeleteCommandInput, QueryCommandInput, UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
 import { ClassProvider, Inject, Injectable, InjectionToken } from '@nestjs/common';
 import { IClientRepository } from '@password-manager:api:interfaces';
 import { DYNAMODB_CLIENT, LOGGER } from '@password-manager:api:providers';
@@ -7,6 +7,7 @@ import { ClientInput, PasswordManagerException } from '@password-manager:api:typ
 import { IDynamoDBClient } from '@password-manager:dynamodb-client';
 import { ILogger } from '@password-manager:logger';
 import { Client, PasswordManagerErrorCodeEnum } from '@password-manager:types';
+import { v4 as uuid } from 'uuid';
 
 @Injectable()
 export class ClientRepository implements IClientRepository {
@@ -131,22 +132,99 @@ export class ClientRepository implements IClientRepository {
         }
     }
 
-    public createClient(input: ClientInput): Promise<Client> {
+    public async createClient(input: ClientInput): Promise<Client> {
         // In this method, we want to create a new client record in DynamoDB.
         // The most important thing in this method is to construct an object
         // that represents a Client. After doing so, save the client
         // in DynamoDB. If that is successful, then return the newly created client,
         // otherwise if something fails, reject with a 503 (Service Unavailable) exception.
         // You can reference the 'createPassword' method in the PasswordRepository for help.
-        return Promise.reject(PasswordManagerException.notImplemented());
+        try {
+            // Get the current time stamp in ISO format
+            const now = new Date().toISOString();
+
+            // Create a new client record
+            const entry = <Client>{
+                clientId: uuid(), // Generate a UUID/GUID (Universal/Global Unique Identifier) for the client
+                login: input.login,
+                password: input.password, //Does this need to be encrypted?
+                metadata: {
+                    createdDate: now,
+                    updatedDate: now,
+                },
+            };
+
+            // Using the DynamoDB client, save the created client above
+            // to the client table
+            await this.dynamoDBClient.save(this.TABLE_NAME, entry);
+
+            // Log an info message indicating that a new client was created
+            this.logger.info('Successfully created a new client', {
+                dynamoDB: {
+                    table: this.TABLE_NAME,
+                },
+            });
+
+            // Return the record so consuming services/classes can have access to the newly created client
+            return entry;
+        } catch (error) {
+            // If something goes wrong, log an error message with the error that occurred
+            this.logger.error('Failed to create a new client', {
+                dynamoDB: {
+                    table: this.TABLE_NAME,
+                    error,
+                },
+            });
+
+            // Reject/throw an exception indicating DynamoDB is down/unavailable
+            return Promise.reject(
+                PasswordManagerException.serviceUnavailable().withErrorCode(PasswordManagerErrorCodeEnum.DynamoDBDown),
+            );
+        }
     }
 
-    public deleteClient(clientId: string): Promise<void> {
+    public async deleteClient(clientId: string): Promise<void> {
         // This method is dedicated to deleting a client record in DynamoDB.
         // All you should need is the clientId and table name to construct the 'DeleteCommandInput'
         // If this is successful, return nothing, otherwise reject with a 503 (Service Unavailable) exception.
         // You can reference the 'deletePassword' method in the PasswordRepository for help
-        return Promise.reject(PasswordManagerException.notImplemented());
+        try {
+            // Construct the DeleteCommandInput type
+            // What is important is the table name and
+            // the Key object which consists of primary key
+            // of 'clientId'
+            const input = <DeleteCommandInput>{
+                TableName: this.TABLE_NAME,
+                Key: {
+                    clientId: clientId,
+                },
+            };
+
+            // Send the delete request to DynamoDB
+            await this.dynamoDBClient.delete(this.TABLE_NAME, input);
+
+            // Log an info message indicating the client was successfully deleted
+            this.logger.info('Successfully deleted client', {
+                dynamoDB: {
+                    table: this.TABLE_NAME,
+                    clientId,
+                },
+            });
+        } catch (error) {
+            // If an error occurs, log an error message indicating it failed and the error that occurred
+            this.logger.error('Failed to delete client', {
+                dynamoDB: {
+                    table: this.TABLE_NAME,
+                    clientId,
+                    error,
+                },
+            });
+
+            // Reject/throw an exception that indicates that DynamoDB is down and unavailable
+            return Promise.reject(
+                PasswordManagerException.serviceUnavailable().withErrorCode(PasswordManagerErrorCodeEnum.DynamoDBDown),
+            );
+        }
     }
 
     public async updateClient(clientId: string, input: ClientInput): Promise<Client> {

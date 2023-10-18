@@ -1,6 +1,6 @@
 // Remove eslint override below once the remaining methods are implemented
 /* eslint-disable @typescript-eslint/no-unused-vars */
-import { DeleteCommandInput, QueryCommandInput, UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
+import { GetCommandInput, DeleteCommandInput, QueryCommandInput, UpdateCommandInput } from '@aws-sdk/lib-dynamodb';
 import { ClassProvider, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectionToken } from '@nestjs/common';
 import { Inject, Injectable } from '@nestjs/common';
@@ -30,7 +30,55 @@ export class PasswordRepository implements IPasswordRepository {
         // this should reject with a 404 (Not Found) exception. Otherwise if something else fails
         // then this should reject with a 503 (Service Unavailable) exception
         // You can also reference the 'getClientById' method in the ClientRepository class
-        return Promise.reject(PasswordManagerException.notImplemented());
+        try {
+            // Construct a GetCommandInput to query that will query the
+            // password table by the passwordId which is the key.
+            const input = <GetCommandInput>{
+                TableName: this.TABLE_NAME,
+                Key: {
+                    passwordId: passwordId,
+                },
+            };
+
+            // Send the GetCommandInput request to DynamoDB
+            const result = await this.dynamoDBClient.get(this.TABLE_NAME, input);
+
+            // If no item is returned, this means that there is not a password record
+            // that exists with the ID provided
+            if (!result.Item) {
+                // Log a warn message that indicates that no password record was found by the passwordId
+                this.logger.warn("Couldn't find the password by ID", { dynamoDB: { table: this.TABLE_NAME } });
+
+                // Reject/throw an exception indicating a 404 (Not Found) and that no client record was found
+                return Promise.reject(
+                    PasswordManagerException.notFound()
+                        .withMessage(`No password exists with ID '${passwordId}'`)
+                        .withErrorCode(PasswordManagerErrorCodeEnum.PasswordNotFound),
+                );
+            }
+
+            // If an item exists, log an info message stating a password record was found
+            this.logger.info('Found password by ID', { dynamoDB: { table: this.TABLE_NAME } });
+
+            // Return the item casted as a Client type
+            return result.Item as Password;
+            //return this.getPasswordById(passwordId);
+        } catch (error) {
+            // If something goes wrong, log an error message stating that finding
+            // the password by ID failed and what error occurred
+            this.logger.error('Failed to find the password by ID', {
+                dynamoDB: { table: this.TABLE_NAME },
+                error: error,
+            });
+
+            // Reject/throw an exception indicating a 503 (Service Unavailable) and that
+            // DynamoDB is down
+            return Promise.reject(
+                PasswordManagerException.serviceUnavailable()
+                    .withMessage('Service is temporarily unavailable.')
+                    .withErrorCode(PasswordManagerErrorCodeEnum.DynamoDBDown),
+            );
+        }
     }
 
     public async getPasswordsByClientId(clientId: string): Promise<Array<Password>> {
@@ -117,7 +165,7 @@ export class PasswordRepository implements IPasswordRepository {
             await this.dynamoDBClient.save(this.TABLE_NAME, entry);
 
             // Log an info message indicating that a new password was created for the client
-            this.logger.info('Successfully created anew password for client', {
+            this.logger.info('Successfully created a new password for client', {
                 dynamoDB: {
                     table: this.TABLE_NAME,
                 },
@@ -185,7 +233,14 @@ export class PasswordRepository implements IPasswordRepository {
         // Delete all the passwords for a client ID. Here you will need
         // to get all the passwords that a client has. After getting them delete
         // all of them. Take a look at the 'batchDelete' method on the 'dynamoDBClient' class
-        return Promise.reject(PasswordManagerException.notImplemented());
+        const passwords = this.getPasswordsByClientId(clientId);
+        const requests = (await passwords).map((key) => {
+            return {
+                DeleteReqeust: {
+                    Key: JSON.parse(JSON.stringify(key)),
+                },
+            };
+        });
     }
 
     public async updatePassword(passwordId: string, input: PasswordInput): Promise<Password> {
@@ -199,7 +254,7 @@ export class PasswordRepository implements IPasswordRepository {
                     passwordId: passwordId,
                 },
                 UpdateExpression:
-                    'set #name = :name, #website = :website, #login = :login, #value = :value, #clientId = :clientId, #metadata.#updatedDate = :updatedDate',
+                    'set #name = :name, #website = :website, #login = :login, #value = :value, #clientId = :clientId, metadata.#updatedDate = :updatedDate',
                 ExpressionAttributeNames: {
                     '#name': 'name',
                     '#website': 'website',
