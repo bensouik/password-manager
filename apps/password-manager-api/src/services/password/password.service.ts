@@ -38,11 +38,23 @@ export class PasswordService implements IPasswordService {
     }
 
     public async createPassword(clientId: string, request: CreatePasswordRequest): Promise<CreatePasswordResponse> {
-        return Promise.reject(PasswordManagerException.notImplemented());
+        const encryptedPassword = this.crypto.encrypt(request.value);
+
+        const input = <PasswordInput>{
+            ...request,
+            clientId,
+            value: encryptedPassword,
+        };
+
+        const password = await this.passwordRepository.createPassword(input);
+
+        return {
+            password,
+        };
     }
 
     public async deletePassword(passwordId: string): Promise<void> {
-        return Promise.reject(PasswordManagerException.notImplemented());
+        await this.passwordRepository.deletePassword(passwordId);
     }
 
     public async updatePassword(
