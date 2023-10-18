@@ -32,7 +32,7 @@ export class PasswordsController {
         @Body()
         request: CreatePasswordRequest,
     ): Promise<CreatePasswordResponse> {
-        return Promise.reject(PasswordManagerException.notImplemented());
+        return this.passwordService.createPassword(clientId, request);
     }
 
     @Delete(':passwordId')
@@ -41,7 +41,7 @@ export class PasswordsController {
         @Param('passwordId')
         passwordId: string,
     ): Promise<void> {
-        return Promise.reject(PasswordManagerException.notImplemented());
+        return this.passwordService.deletePassword(passwordId);
     }
 
     @Put(':passwordId')
@@ -54,6 +54,6 @@ export class PasswordsController {
         @Body()
         request: UpdatePasswordRequest,
     ): Promise<UpdatePasswordResponse> {
-        return Promise.reject(PasswordManagerException.notImplemented());
+        return this.passwordService.updatePassword(clientId, passwordId, request);
     }
 }
