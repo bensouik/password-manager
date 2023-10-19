@@ -128,16 +128,98 @@ describe('ClientService Tests', () => {
 
     describe('Update Client', () => {
         // Remove this test after the service is implemented
-        it('Method not implemented', async () => {
+        it('If client exists updates a client (login and password) and returns the client', async () => {
+            mockClientRepository.getClientById = jest
+                .fn()
+                .mockResolvedValue({
+                    clientId: 'clientId',
+                    login: 'login',
+                    password: 'password',
+                    metadata: { createdDate: 'now', updatedDate: 'now' },
+                });
+            mockCrypto.encrypt = jest.fn().mockReturnValue('password');
+            mockClientRepository.updateClient = jest.fn().mockResolvedValue(<Client>{
+                clientId: 'clientId',
+                login: 'username',
+                password: 'password',
+                metadata: {
+                    createdDate: 'now',
+                    updatedDate: 'now',
+                },
+            });
+
+            const actual = await service.updateClient('clientId', { login: 'username', password: 'password' });
+
+            expect(actual.client).toStrictEqual(<ClientResponse>{
+                clientId: 'clientId',
+                login: 'username',
+                metadata: {
+                    createdDate: 'now',
+                    updatedDate: 'now',
+                },
+            });
+
+            expect(mockClientRepository.getClientById).toBeCalledTimes(1);
+
+            expect(mockCrypto.encrypt).toBeCalledTimes(1);
+            expect(mockCrypto.encrypt).toBeCalledWith('password');
+
+            expect(mockClientRepository.updateClient).toBeCalledTimes(1);
+            expect(mockClientRepository.updateClient).toBeCalledWith('clientId', {
+                login: 'username',
+                password: 'password',
+            });
+        });
+
+        it('If client does not exist rejcect with a login not found error', async () => {
+            mockClientRepository.getClientById = jest.fn().mockRejectedValue(PasswordManagerException.notFound());
+            mockClientRepository.updateClient = jest
+                .fn()
+                .mockRejectedValue(PasswordManagerException.serviceUnavailable());
+
             try {
-                await service.updateClient('clientId', { login: 'login', password: 'P@ssword123' });
+                await service.updateClient('clientId', { login: 'login', password: 'password' });
             } catch (error) {
                 expect(error).toBeInstanceOf(PasswordManagerException);
 
                 const exception = error as PasswordManagerException;
-                expect(exception.statusCode).toBe(HttpStatus.NOT_IMPLEMENTED);
-                expect(exception.message).toBe('Not Implemented');
-                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.NotImplemented);
+                expect(exception.statusCode).toBe(HttpStatus.NOT_FOUND);
+                expect(exception.message).toBe('Login not found');
+                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.ClientNotFound);
+
+                expect(mockClientRepository.getClientById).toBeCalledTimes(1);
+                expect(mockClientRepository.getClientById).toBeCalledWith('clientId');
+
+                expect(mockCrypto.encrypt).toBeCalledTimes(0);
+
+                expect(mockClientRepository.updateClient).toBeCalledTimes(0);
+            }
+        });
+
+        it('Rejects with a service unavailable if getting client by Id fails', async () => {
+            mockClientRepository.getClientById = jest
+                .fn()
+                .mockRejectedValue(PasswordManagerException.serviceUnavailable());
+            mockClientRepository.updateClient = jest
+                .fn()
+                .mockRejectedValue(PasswordManagerException.serviceUnavailable());
+
+            try {
+                await service.updateClient('clientId', { login: 'login', password: 'password' });
+            } catch (error) {
+                expect(error).toBeInstanceOf(PasswordManagerException);
+
+                const exception = error as PasswordManagerException;
+                expect(exception.statusCode).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+                expect(exception.message).toBe('Service Unavailable');
+                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.ServiceUnavailable);
+
+                expect(mockClientRepository.getClientById).toBeCalledTimes(1);
+                expect(mockClientRepository.getClientById).toBeCalledWith('clientId');
+
+                expect(mockCrypto.encrypt).toBeCalledTimes(0);
+
+                expect(mockClientRepository.updateClient).toBeCalledTimes(0);
             }
         });
 

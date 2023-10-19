@@ -210,7 +210,7 @@ describe('PasswordRepository Tests', () => {
             });
 
             expect(mockLogger.info).toBeCalledTimes(1);
-            expect(mockLogger.info).toBeCalledWith('Successfully created anew password for client', {
+            expect(mockLogger.info).toBeCalledWith('Successfully created a new password for client', {
                 dynamoDB: {
                     table: 'Password',
                 },
@@ -377,7 +377,7 @@ describe('PasswordRepository Tests', () => {
                     passwordId: 'passwordId',
                 },
                 UpdateExpression:
-                    'set #name = :name, #website = :website, #login = :login, #value = :value, #clientId = :clientId, #metadata.updatedDate = :updatedDate',
+                    'set #name = :name, #website = :website, #login = :login, #value = :value, #clientId = :clientId, metadata.#updatedDate = :updatedDate',
                 ExpressionAttributeNames: {
                     '#name': 'name',
                     '#website': 'website',
@@ -433,7 +433,7 @@ describe('PasswordRepository Tests', () => {
                         passwordId: 'passwordId',
                     },
                     UpdateExpression:
-                        'set #name = :name, #website = :website, #login = :login, #value = :value, #clientId = :clientId, #metadata.updatedDate = :updatedDate',
+                        'set #name = :name, #website = :website, #login = :login, #value = :value, #clientId = :clientId, metadata.#updatedDate = :updatedDate',
                     ExpressionAttributeNames: {
                         '#name': 'name',
                         '#website': 'website',
