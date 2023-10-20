@@ -338,8 +338,9 @@ describe('PasswordRepository Tests', () => {
 
     describe('Update Password', () => {
         it('Updates the password in DynamoDB', async () => {
-            mockDynamoDBClient.update = jest.fn().mockResolvedValue({
-                Attributes: <Password>{
+            mockDynamoDBClient.update = jest.fn().mockResolvedValue({});
+            mockDynamoDBClient.get = jest.fn().mockResolvedValue({
+                Item: {
                     passwordId: 'passwordId',
                     name: 'name',
                     website: null,
@@ -397,11 +398,16 @@ describe('PasswordRepository Tests', () => {
                 ConditionExpression: 'attribute_exists(passwordId)',
             });
 
-            expect(mockLogger.info).toBeCalledTimes(1);
-            expect(mockLogger.info).toBeCalledWith('Successfully updated the password', {
+            expect(mockLogger.info).toBeCalledTimes(2);
+            expect(mockLogger.info).toHaveBeenNthCalledWith(1, 'Successfully updated the password', {
                 dynamoDB: {
                     table: 'Password',
                     passwordId: 'passwordId',
+                },
+            });
+            expect(mockLogger.info).toHaveBeenNthCalledWith(2, 'Found password by ID', {
+                dynamoDB: {
+                    table: 'Password',
                 },
             });
         });

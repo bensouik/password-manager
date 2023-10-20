@@ -129,14 +129,12 @@ describe('ClientService Tests', () => {
     describe('Update Client', () => {
         // Remove this test after the service is implemented
         it('If client exists updates a client (login and password) and returns the client', async () => {
-            mockClientRepository.getClientById = jest
-                .fn()
-                .mockResolvedValue({
-                    clientId: 'clientId',
-                    login: 'login',
-                    password: 'password',
-                    metadata: { createdDate: 'now', updatedDate: 'now' },
-                });
+            mockClientRepository.getClientById = jest.fn().mockResolvedValue({
+                clientId: 'clientId',
+                login: 'login',
+                password: 'password',
+                metadata: { createdDate: 'now', updatedDate: 'now' },
+            });
             mockCrypto.encrypt = jest.fn().mockReturnValue('password');
             mockClientRepository.updateClient = jest.fn().mockResolvedValue(<Client>{
                 clientId: 'clientId',

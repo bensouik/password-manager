@@ -60,7 +60,7 @@ export class PasswordRepository implements IPasswordRepository {
             // If an item exists, log an info message stating a password record was found
             this.logger.info('Found password by ID', { dynamoDB: { table: this.TABLE_NAME } });
 
-            // Return the item casted as a Client type
+            // Return the item casted as a password type
             return result.Item as Password;
             //return this.getPasswordById(passwordId);
         } catch (error) {
