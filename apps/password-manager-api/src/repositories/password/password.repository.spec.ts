@@ -321,8 +321,8 @@ describe('PasswordRepository Tests', () => {
         });
     });
 
-    describe('Delete Password for Client Id', () => {
-        it('Throws an error because the method is not implemented', async () => {
+    describe('Delete Passwords for Client Id', () => {
+        it('Method not implemented', async () => {
             try {
                 await repository.deletePasswordsForClientId('123');
             } catch (error) {

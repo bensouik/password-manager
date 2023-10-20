@@ -2,7 +2,7 @@ import { HttpStatus } from '@nestjs/common';
 import { PasswordRepository } from '@password-manager:api:repositories/password/password.repository';
 import { PasswordInput, PasswordManagerException } from '@password-manager:api:types';
 import { Crypto } from '@password-manager:crypto';
-import { Password, PasswordManagerErrorCodeEnum } from '@password-manager:types';
+import { Password, PasswordManagerErrorCodeEnum, PasswordResponse } from '@password-manager:types';
 
 import { PasswordService } from './password.service';
 
@@ -78,37 +78,63 @@ describe('PasswordService Tests', () => {
     });
 
     describe('Create Password', () => {
-        it('Method not implemented', async () => {
-            try {
-                await service.createPassword('clientId', {
-                    name: 'name',
-                    website: 'http://foo.com',
-                    login: 'login',
-                    value: 'P@ssword123',
-                });
-            } catch (error) {
-                expect(error).toBeInstanceOf(PasswordManagerException);
+        it('Creates a new password and returns it', async () => {
+            mockCrypto.encrypt = jest.fn().mockReturnValue('password');
+            mockPasswordRepository.createPassword = jest.fn().mockResolvedValue(<Password>{
+                passwordId: 'passwordId',
+                name: 'name',
+                website: null,
+                login: 'login',
+                value: 'password',
+                clientId: 'clientId',
+                metadata: {
+                    createdDate: 'now',
+                    updatedDate: 'now',
+                },
+            });
 
-                const exception = error as PasswordManagerException;
-                expect(exception.statusCode).toBe(HttpStatus.NOT_IMPLEMENTED);
-                expect(exception.message).toBe('Not Implemented');
-                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.NotImplemented);
-            }
+            const actual = await service.createPassword('clientId', {
+                name: 'name',
+                website: null,
+                login: 'login',
+                value: 'password',
+            });
+
+            expect(actual.password).toStrictEqual(<PasswordResponse>{
+                passwordId: 'passwordId',
+                name: 'name',
+                website: null,
+                login: 'login',
+                value: 'password',
+                clientId: 'clientId',
+                metadata: {
+                    createdDate: 'now',
+                    updatedDate: 'now',
+                },
+            });
+
+            expect(mockCrypto.encrypt).toBeCalledTimes(1);
+            expect(mockCrypto.encrypt).toBeCalledWith('password');
+
+            expect(mockPasswordRepository.createPassword).toBeCalledTimes(1);
+            expect(mockPasswordRepository.createPassword).toBeCalledWith({
+                clientId: 'clientId',
+                name: 'name',
+                website: null,
+                login: 'login',
+                value: 'password',
+            });
         });
     });
 
     describe('Delete Password', () => {
-        it('Method not implemented', async () => {
-            try {
-                await service.deletePassword('passwordId');
-            } catch (error) {
-                expect(error).toBeInstanceOf(PasswordManagerException);
+        it('Deletes the password', async () => {
+            mockPasswordRepository.deletePassword = jest.fn().mockResolvedValue({});
 
-                const exception = error as PasswordManagerException;
-                expect(exception.statusCode).toBe(HttpStatus.NOT_IMPLEMENTED);
-                expect(exception.message).toBe('Not Implemented');
-                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.NotImplemented);
-            }
+            await service.deletePassword('passwordId');
+
+            expect(mockPasswordRepository.deletePassword).toBeCalledTimes(1);
+            expect(mockPasswordRepository.deletePassword).toBeCalledWith('passwordId');
         });
     });
 
