@@ -1,4 +1,4 @@
-import { DeleteCommandInput } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommandInput, GetCommandInput } from '@aws-sdk/lib-dynamodb';
 import { HttpStatus } from '@nestjs/common';
 import { PasswordInput, PasswordManagerException } from '@password-manager:api:types';
 import { DynamoDBClient } from '@password-manager:dynamodb-client';
@@ -14,6 +14,7 @@ jest.mock('uuid', () => ({
 describe('PasswordRepository Tests', () => {
     const mockLogger = Logger.prototype;
     const mockDynamoDBClient = DynamoDBClient.prototype;
+    const mockPasswordRepository = PasswordRepository.prototype;
     let repository: PasswordRepository;
 
     beforeEach(() => {
@@ -31,16 +32,106 @@ describe('PasswordRepository Tests', () => {
     });
 
     describe('Get Password By Id', () => {
-        it('Throws an error because the method is not implemented', async () => {
+        it('Gets the password from password id', async () => {
+            mockDynamoDBClient.get = jest.fn().mockResolvedValue({
+                Item: {
+                    passwordId: 'passwordId',
+                    name: 'name',
+                    website: null,
+                    login: 'login',
+                    value: 'password',
+                    clientId: 'clientId',
+                },
+            });
+
+            const actual = await repository.getPasswordById('passwordId');
+
+            expect(mockLogger.info).toBeCalledTimes(1);
+            expect(mockLogger.info).toBeCalledWith('Found password by ID', {
+                dynamoDB: {
+                    table: 'Password',
+                },
+            });
+
+            expect(mockDynamoDBClient.get).toBeCalledTimes(1);
+            expect(mockDynamoDBClient.get).toBeCalledWith('Password', <GetCommandInput>{
+                TableName: 'Password',
+                Key: {
+                    passwordId: 'passwordId',
+                },
+            });
+
+            expect(actual).toStrictEqual({
+                passwordId: 'passwordId',
+                name: 'name',
+                website: null,
+                login: 'login',
+                value: 'password',
+                clientId: 'clientId',
+            });
+        });
+
+        //This case is currently returning a 503 instead of a 404 error
+        it('Rejects with a Not Found PasswordManagerException when the password does not exist', async () => {
+            mockDynamoDBClient.get = jest.fn().mockResolvedValue({
+                Item: null,
+            });
+
             try {
-                await repository.getPasswordById('id');
+                await repository.getPasswordById('passwordId');
             } catch (error) {
                 expect(error).toBeInstanceOf(PasswordManagerException);
 
                 const exception = error as PasswordManagerException;
-                expect(exception.statusCode).toBe(HttpStatus.NOT_IMPLEMENTED);
-                expect(error.message).toBe('Not Implemented');
-                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.NotImplemented);
+                expect(exception.statusCode).toBe(HttpStatus.NOT_FOUND);
+                expect(exception.message).toBe("No password exists with ID 'passwordId'");
+                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.PasswordNotFound);
+
+                expect(mockLogger.warn).toBeCalledTimes(1);
+                expect(mockLogger.warn).toBeCalledWith("Couldn't find the password by ID", {
+                    dynamoDB: {
+                        table: 'Password',
+                    },
+                });
+
+                expect(mockDynamoDBClient.get).toBeCalledTimes(1);
+                expect(mockDynamoDBClient.get).toBeCalledWith('Password', <GetCommandInput>{
+                    TableName: 'Password',
+                    Key: {
+                        passwordId: 'passwordId',
+                    },
+                });
+            }
+        });
+
+        it('Rejects with a Service Unavailable PasswordManagerException when the request to DynamoDB fails for an unknown reason', async () => {
+            const err = new Error('Something broke');
+
+            mockDynamoDBClient.get = jest.fn().mockRejectedValue(err);
+
+            try {
+                await repository.getPasswordById('passwordId');
+            } catch (error) {
+                expect(error).toBeInstanceOf(PasswordManagerException);
+
+                const exception = error as PasswordManagerException;
+                expect(exception.statusCode).toBe(HttpStatus.SERVICE_UNAVAILABLE);
+                expect(exception.message).toBe('Service is temporarily unavailable.');
+                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.DynamoDBDown);
+
+                expect(mockLogger.error).toBeCalledTimes(1);
+                expect(mockLogger.error).toBeCalledWith('Failed to find the password by ID', {
+                    dynamoDB: { table: 'Password' },
+                    error: err,
+                });
+
+                expect(mockDynamoDBClient.get).toBeCalledTimes(1);
+                expect(mockDynamoDBClient.get).toBeCalledWith('Password', <GetCommandInput>{
+                    TableName: 'Password',
+                    Key: {
+                        passwordId: 'passwordId',
+                    },
+                });
             }
         });
     });
@@ -321,18 +412,19 @@ describe('PasswordRepository Tests', () => {
         });
     });
 
+    //This case currently passes but need to check if method is written correctly
     describe('Delete Passwords for Client Id', () => {
-        it('Method not implemented', async () => {
-            try {
-                await repository.deletePasswordsForClientId('123');
-            } catch (error) {
-                expect(error).toBeInstanceOf(PasswordManagerException);
+        it('Deletes all passwords for a client id', async () => {
+            mockPasswordRepository.getPasswordsByClientId = jest.fn().mockResolvedValue({});
+            mockDynamoDBClient.batchDelete = jest.fn().mockResolvedValue({});
 
-                const exception = error as PasswordManagerException;
-                expect(exception.statusCode).toBe(HttpStatus.NOT_IMPLEMENTED);
-                expect(error.message).toBe('Not Implemented');
-                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.NotImplemented);
-            }
+            await repository.deletePasswordsForClientId('clientId');
+
+            expect(mockPasswordRepository.getPasswordsByClientId).toBeCalledTimes(1);
+            expect(mockPasswordRepository.getPasswordsByClientId).toBeCalledWith('clientId');
+
+            expect(mockDynamoDBClient.batchDelete).toBeCalledTimes(1);
+            expect(mockDynamoDBClient.batchDelete).toBeCalledWith('Password', {});
         });
     });
 

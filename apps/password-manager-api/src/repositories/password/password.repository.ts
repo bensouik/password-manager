@@ -233,14 +233,8 @@ export class PasswordRepository implements IPasswordRepository {
         // Delete all the passwords for a client ID. Here you will need
         // to get all the passwords that a client has. After getting them delete
         // all of them. Take a look at the 'batchDelete' method on the 'dynamoDBClient' class
-        const passwords = this.getPasswordsByClientId(clientId);
-        const requests = (await passwords).map((key) => {
-            return {
-                DeleteReqeust: {
-                    Key: JSON.parse(JSON.stringify(key)),
-                },
-            };
-        });
+        const passwords = await this.getPasswordsByClientId(clientId);
+        this.dynamoDBClient.batchDelete(this.TABLE_NAME, passwords);
     }
 
     public async updatePassword(passwordId: string, input: PasswordInput): Promise<Password> {
