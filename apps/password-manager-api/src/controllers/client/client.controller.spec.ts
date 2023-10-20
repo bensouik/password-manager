@@ -1,7 +1,5 @@
-import { HttpStatus } from '@nestjs/common';
 import { ClientService } from '@password-manager:api:services/client/client.service';
-import { PasswordManagerException } from '@password-manager:api:types';
-import { CreateClientResponse, PasswordManagerErrorCodeEnum } from '@password-manager:types';
+import { CreateClientResponse } from '@password-manager:types';
 
 import { ClientController } from './client.controller';
 
@@ -58,27 +56,20 @@ describe('ClientController Tests', () => {
     });
 
     describe('Update Client', () => {
-        // Remove this test after the method is implemented
-        it('Method not implemented', async () => {
-            try {
-                await controller.updateClient('clientId', { login: 'login', password: 'password' });
-            } catch (error) {
-                expect(error).toBeInstanceOf(PasswordManagerException);
+        it('Successfully updates the client', async () => {
+            mockClientService.updateClient = jest.fn().mockResolvedValue({
+                clientId: 'clientId',
+                login: 'login',
+                metadata: {
+                    createdDate: 'now',
+                    updatedDate: 'now',
+                },
+            });
 
-                const exception = error as PasswordManagerException;
-                expect(exception.statusCode).toBe(HttpStatus.NOT_IMPLEMENTED);
-                expect(exception.message).toBe('Not Implemented');
-                expect(exception.errorCode).toBe(PasswordManagerErrorCodeEnum.NotImplemented);
-            }
+            await controller.updateClient('clientId', { login: 'login', password: 'password' });
+
+            expect(mockClientService.updateClient).toBeCalledTimes(1);
+            expect(mockClientService.updateClient).toBeCalledWith('clientId', { login: 'login', password: 'password' });
         });
-
-        // Place all unit tests for successful results (status code 201) here
-        describe('Successful Results', () => {});
-
-        // Place all unit tests for not found results (status code 404)
-        describe('Not Found Results', () => {});
-
-        // Place all unit tests for service unavailable results (status code 503) here
-        describe('Service Unavailable Results', () => {});
     });
 });
